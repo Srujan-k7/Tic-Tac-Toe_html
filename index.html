@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Tic Tac Toe</title>
+<style>
+  /* --- Page Layout --- */
+ body {
+  font-family: 'Poppins', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;   /* <-- centers vertically */
+  min-height: 100vh;         /* <-- ensures full height */
+  background: linear-gradient(to right, #6a11cb, #2575fc);
+  color: #333;
+  margin: 0;
+}
+
+
+  h1 {
+    margin: 10px 0;
+    font-size: 3rem;
+    color: #fff;
+    text-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+  }
+
+  h2 { 
+    color: #fff;
+    margin: 15px 0 10px 0;
+  }
+
+  /* --- Board Styling --- */
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 120px);
+    grid-gap: 10px;
+    margin: 20px 0;
+  }
+
+  .cell {
+    width: 120px;
+    height: 120px;
+    font-size: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  .cell:hover {
+    transform: scale(1.05);
+    background: #f0f0f0;
+  }
+
+  .cell.disabled {
+    cursor: default;
+    background: #ddd;
+    color: #555;
+    transform: none;
+  }
+
+  /* --- Buttons --- */
+  button {
+    margin: 5px;
+    padding: 12px 25px;
+    font-size: 1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: #fff;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  }
+
+  button:hover {
+    background: #f0f0f0;
+    transform: translateY(-3px);
+  }
+
+  .controls {
+    margin-top: 10px;
+  }
+
+  /* --- Status Message --- */
+  #status {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fff;
+    margin-top: 10px;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+  }
+
+  /* --- Symbol Buttons --- */
+  div > button {
+    background: #fffa;
+    color: #333;
+    font-weight: bold;
+  }
+
+  div > button:hover {
+    background: #fff;
+    color: #2575fc;
+  }
+
+</style>
+</head>
+<body>
+
+<h1>Tic Tac Toe</h1>
+
+<div id="mode-selection">
+        
+  <h2>Select Mode</h2>
+  <button onclick="selectMode('Easy')">Easy</button>
+  <button onclick="selectMode('Intermediate')">Intermediate</button>
+  <button onclick="selectMode('Hard')">Hard</button>
+</div>
+
+<div id="game" style="display:none;">
+  <h2 id="mode-title"></h2>
+  <div>
+    Choose your symbol:
+    <button onclick="chooseSymbol('X')">X</button>
+    <button onclick="chooseSymbol('O')">O</button>
+  </div>
+
+  <div id="board"></div>
+
+  <div id="status"></div>
+  <div class="controls">
+    <button onclick="restartGame()">Restart</button>
+    <button onclick="backHome()">Back to Home</button>
+  </div>
+</div>
+
+<script>
+  let board = Array(9).fill(" ");
+  let playerSymbol = "X";
+  let aiSymbol = "O";
+  let gameOver = false;
+  let mode = "";
+  let pendingAI = false;
+
+  const boardDiv = document.getElementById("board");
+  const statusDiv = document.getElementById("status");
+
+  function selectMode(selectedMode) {
+    mode = selectedMode;
+    document.getElementById("mode-selection").style.display = "none";
+    document.getElementById("game").style.display = "block";
+    document.getElementById("mode-title").innerText = "Mode: " + mode;
+    renderBoard();
+  }
+
+  function chooseSymbol(symbol) {
+    playerSymbol = symbol;
+    aiSymbol = symbol === "X" ? "O" : "X";
+    if (playerSymbol === "O") pendingAI = true;
+    statusDiv.innerText = "";
+    renderBoard();
+    if (pendingAI) aiMove();
+  }
+
+  function renderBoard() {
+    boardDiv.innerHTML = "";
+    board.forEach((cell, idx) => {
+      const cellDiv = document.createElement("div");
+      cellDiv.className = "cell" + (cell !== " " || gameOver ? " disabled" : "");
+      cellDiv.innerText = cell;
+      cellDiv.onclick = () => playerMove(idx);
+      boardDiv.appendChild(cellDiv);
+    });
+  }
+
+  function playerMove(idx) {
+    if (board[idx] !== " " || gameOver) return;
+    board[idx] = playerSymbol;
+    if (checkWinner(board, playerSymbol)) {
+      statusDiv.innerText = "You win!";
+      gameOver = true;
+    } else if (isFull(board)) {
+      statusDiv.innerText = "It's a tie!";
+      gameOver = true;
+    } else {
+      pendingAI = true;
+      aiMove();
+    }
+    renderBoard();
+  }
+
+  function aiMove() {
+    if (!pendingAI || gameOver) return;
+    if (mode === "Easy") easyAI(board, aiSymbol);
+    else if (mode === "Intermediate") intermediateAI(board, aiSymbol, playerSymbol);
+    else hardAI(board, aiSymbol, playerSymbol);
+
+    if (checkWinner(board, aiSymbol)) {
+      statusDiv.innerText = "AI wins!";
+      gameOver = true;
+    } else if (isFull(board)) {
+      statusDiv.innerText = "It's a tie!";
+      gameOver = true;
+    }
+    pendingAI = false;
+    renderBoard();
+  }
+
+  function easyAI(board, ai) {
+    const empty = board.map((v, i) => v === " " ? i : null).filter(v => v !== null);
+    board[empty[Math.floor(Math.random() * empty.length)]] = ai;
+  }
+
+  function intermediateAI(board, ai, player) {
+    for (let i = 0; i < 9; i++) {
+      if (board[i] === " ") {
+        board[i] = ai;
+        if (checkWinner(board, ai)) return;
+        board[i] = " ";
+      }
+    }
+    for (let i = 0; i < 9; i++) {
+      if (board[i] === " ") {
+        board[i] = player;
+        if (checkWinner(board, player)) {
+          board[i] = ai;
+          return;
+        }
+        board[i] = " ";
+      }
+    }
+    easyAI(board, ai);
+  }
+
+  function hardAI(board, ai, player) {
+    let best = -Infinity, move = null;
+    for (let i = 0; i < 9; i++) {
+      if (board[i] === " ") {
+        board[i] = ai;
+        const score = minimax(board, false, ai, player);
+        board[i] = " ";
+        if (score > best) { best = score; move = i; }
+      }
+    }
+    if (move !== null) board[move] = ai;
+  }
+
+  function minimax(board, maximizing, ai, player) {
+    if (checkWinner(board, ai)) return 1;
+    if (checkWinner(board, player)) return -1;
+    if (isFull(board)) return 0;
+
+    if (maximizing) {
+      let best = -Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (board[i] === " ") {
+          board[i] = ai;
+          best = Math.max(best, minimax(board, false, ai, player));
+          board[i] = " ";
+        }
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (board[i] === " ") {
+          board[i] = player;
+          best = Math.min(best, minimax(board, true, ai, player));
+          board[i] = " ";
+        }
+      }
+      return best;
+    }
+  }
+
+  function checkWinner(board, player) {
+    const combos = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+    return combos.some(c => c.every(i => board[i] === player));
+  }
+
+  function isFull(board) {
+    return board.every(cell => cell !== " ");
+  }
+
+  function restartGame() {
+    board = Array(9).fill(" ");
+    gameOver = false;
+    pendingAI = playerSymbol === "O";
+    statusDiv.innerText = "";
+    renderBoard();
+    if (pendingAI) aiMove();
+  }
+
+  function backHome() {
+    document.getElementById("mode-selection").style.display = "block";
+    document.getElementById("game").style.display = "none";
+    board = Array(9).fill(" ");
+    gameOver = false;
+    pendingAI = false;
+  }
+</script>
+</body>
+</html>
